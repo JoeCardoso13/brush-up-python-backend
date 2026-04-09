@@ -1,0 +1,1 @@
+The `id` [[Function]] returns an [[Integer]] that serves as an [[Object]]'s **identity**. Every [[Object]] has a unique identity that does not change during the [[Object]]'s lifetime. (The identity may be reused later in the program if the original object is discarded.)

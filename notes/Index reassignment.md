@@ -1,0 +1,1 @@
+[[Dictionary]] and [[List]]s provide a way to mutate themselves by changing the value referenced by their key, or index, respectively. It looks like a [[Variable reassignment]] (and it is from the perspective of the element itself) but, from the perspective of the [[Collection]], it's a destructive [[Method]] that mutates it.

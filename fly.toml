@@ -1,0 +1,21 @@
+app = "brush-up-py"
+primary_region = "ewr"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[mounts]
+  source = "brush_up_data"
+  destination = "/data"
+
+[env]
+  BRUSH_UP_DB_PATH = "/data/brush_up.db"
+  BRUSH_UP_INPUT_BUDGET = "2000000"
+  BRUSH_UP_OUTPUT_BUDGET = "500000"

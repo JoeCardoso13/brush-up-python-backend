@@ -1,0 +1,18 @@
+Some common examples are:
+- `float`, `int`
+- `str`, `list`, `tuple`
+- `set`, `frozenset`
+- `input`, `print`
+- `type`
+- `len`
+- [[Min]] and [[Max]]
+- [[Ord]] and [[Chr]]
+- [[Any]] and [[All]]
+- [[Id]]
+- [[Dir]]
+- [[Help]]
+- [[Sum]]
+- [[Zip]]
+- [[Sorted]]
+- [[Reversed]]
+- [[Isinstance]]

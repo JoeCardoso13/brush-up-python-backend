@@ -1,0 +1,1 @@
+Python doesn't offer support for constants. Instead, the SCREAMING_SNAKE_CASE convention is used to provide developers a clear warning/message to never incur [[Variable reassignment]] on a 'constant'.

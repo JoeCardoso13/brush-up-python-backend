@@ -1,0 +1,1 @@
+A `while` loop uses the `while` keyword followed by a [[Conditional expression]], a colon (`:`), and a block. The loop repeatedly executes the block while the [[Conditional expression]] remains truthy.

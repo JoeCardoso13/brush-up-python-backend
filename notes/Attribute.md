@@ -1,0 +1,1 @@
+A value associated with an [[Object]] which is usually referenced by name using dotted [[Expression]]s. For example, if an [[Object]] _o_ has an attribute _a_ it would be referenced as _o.a_. Attributes include all [[Instance variable]]s and [[Instance method]]s.
