@@ -38,7 +38,7 @@ ALLOWED_ORIGINS = [
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.graph = build_graph(NOTES_DIR)
-    app.state.client = anthropic.Anthropic()
+    app.state.client = anthropic.Anthropic(max_retries=3)
     app.state.db = init_db(DB_PATH)
     logger.info("Graph loaded: %d topics", app.state.graph.number_of_nodes())
     yield
@@ -100,9 +100,28 @@ def chat(req: ChatRequest, request: Request):
         )
 
     start = time.monotonic()
-    response_text, updated_history, usage = ask(
-        graph, req.question, req.conversation_history, client=client
-    )
+    try:
+        response_text, updated_history, usage = ask(
+            graph, req.question, req.conversation_history, client=client
+        )
+    except anthropic.APIStatusError as exc:
+        if exc.status_code == 529:
+            logger.warning("anthropic overloaded user=%s", req.user_id[:8])
+            return JSONResponse(
+                status_code=503,
+                content={"error": "overloaded", "detail": "The AI service is temporarily busy. Please try again in a moment."},
+            )
+        logger.error("anthropic error user=%s: %s", req.user_id[:8], exc)
+        return JSONResponse(
+            status_code=502,
+            content={"error": "api_error", "detail": "Something went wrong calling the AI service. Please try again."},
+        )
+    except anthropic.APIError as exc:
+        logger.error("anthropic error user=%s: %s", req.user_id[:8], exc)
+        return JSONResponse(
+            status_code=502,
+            content={"error": "api_error", "detail": "Something went wrong calling the AI service. Please try again."},
+        )
     elapsed = time.monotonic() - start
 
     record_usage(db, req.user_id, usage["input_tokens"], usage["output_tokens"])

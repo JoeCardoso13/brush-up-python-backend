@@ -1,21 +1,32 @@
-app = "brush-up-py"
-primary_region = "ewr"
+# fly.toml app configuration file generated for brush-up-py on 2026-04-10T09:44:58-03:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'brush-up-py'
+primary_region = 'ewr'
 
 [build]
-  dockerfile = "Dockerfile"
+  dockerfile = 'Dockerfile'
+
+[env]
+  BRUSH_UP_DB_PATH = '/data/brush_up.db'
+  BRUSH_UP_INPUT_BUDGET = '2000000'
+  BRUSH_UP_OUTPUT_BUDGET = '500000'
+
+[[mounts]]
+  source = 'brush_up_data'
+  destination = '/data'
 
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = "stop"
+  auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
 
-[mounts]
-  source = "brush_up_data"
-  destination = "/data"
-
-[env]
-  BRUSH_UP_DB_PATH = "/data/brush_up.db"
-  BRUSH_UP_INPUT_BUDGET = "2000000"
-  BRUSH_UP_OUTPUT_BUDGET = "500000"
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 1024
