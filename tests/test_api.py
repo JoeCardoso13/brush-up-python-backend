@@ -1,5 +1,6 @@
 """Tests for api.py — FastAPI endpoints with mocked Claude client."""
 
+from contextlib import asynccontextmanager
 from unittest.mock import MagicMock
 
 import pytest
@@ -23,17 +24,23 @@ def _make_mock_client(response_text="Here is my explanation."):
 @pytest.fixture
 def app_client(mini_notes):
     """Create a TestClient with test graph, mock Claude client, and in-memory DB."""
-    from api import app
+    import api
 
     test_graph = build_graph(mini_notes)
     mock_client = _make_mock_client()
     test_db = init_db(":memory:")
 
-    app.state.graph = test_graph
-    app.state.client = mock_client
-    app.state.db = test_db
+    @asynccontextmanager
+    async def test_lifespan(app):
+        yield
 
-    yield TestClient(app, raise_server_exceptions=True), mock_client, test_db
+    api.app.router.lifespan_context = test_lifespan
+
+    with TestClient(api.app, raise_server_exceptions=True) as client:
+        api.app.state.graph = test_graph
+        api.app.state.client = mock_client
+        api.app.state.db = test_db
+        yield client, mock_client, test_db
 
 
 # ── Group M: POST /api/chat ───────────────────────────────────────────
@@ -150,3 +157,47 @@ class TestUsage:
         data = resp.json()
         assert data["total_input_tokens"] == 500
         assert data["total_output_tokens"] == 200
+
+
+# ── Group P: CORS ─────────────────────────────────────────────────────
+
+
+class TestCors:
+    @pytest.mark.parametrize(
+        "origin",
+        [
+            "https://joecardoso.dev",
+            "https://www.joecardoso.dev",
+            "http://localhost:4321",
+            "https://brush-up-py-git-main-joe.vercel.app",
+        ],
+    )
+    def test_preflight_allows_configured_origins(self, app_client, origin):
+        client, _, _ = app_client
+
+        resp = client.options(
+            "/api/chat",
+            headers={
+                "Origin": origin,
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "content-type",
+            },
+        )
+
+        assert resp.status_code == 200
+        assert resp.headers["access-control-allow-origin"] == origin
+
+    def test_preflight_rejects_unknown_origin(self, app_client):
+        client, _, _ = app_client
+
+        resp = client.options(
+            "/api/chat",
+            headers={
+                "Origin": "https://evil.example",
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "content-type",
+            },
+        )
+
+        assert resp.status_code == 400
+        assert "access-control-allow-origin" not in resp.headers

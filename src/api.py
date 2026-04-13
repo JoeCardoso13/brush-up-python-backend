@@ -27,10 +27,28 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 NOTES_DIR = Path(__file__).resolve().parent.parent / "notes"
 DB_PATH = os.environ.get("BRUSH_UP_DB_PATH", "/data/brush_up.db")
 
-ALLOWED_ORIGINS = [
+DEFAULT_ALLOWED_ORIGINS = (
     "https://joecardoso.dev",
+    "https://www.joecardoso.dev",
     "http://localhost:4321",
-]
+)
+DEFAULT_ALLOWED_ORIGIN_REGEX = r"^https://[-a-zA-Z0-9]+\.vercel\.app$"
+
+
+def _parse_allowed_origins() -> list[str]:
+    configured = os.environ.get("BRUSH_UP_ALLOWED_ORIGINS")
+    if not configured:
+        return list(DEFAULT_ALLOWED_ORIGINS)
+
+    return [origin.strip() for origin in configured.split(",") if origin.strip()]
+
+
+def _parse_allowed_origin_regex() -> str | None:
+    return os.environ.get("BRUSH_UP_ALLOWED_ORIGIN_REGEX", DEFAULT_ALLOWED_ORIGIN_REGEX)
+
+
+ALLOWED_ORIGINS = _parse_allowed_origins()
+ALLOWED_ORIGIN_REGEX = _parse_allowed_origin_regex()
 
 
 # ── App lifecycle ──────────────────────────────────────────────────────
@@ -51,8 +69,9 @@ app.state.limiter = limiter
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=ALLOWED_ORIGIN_REGEX,
     allow_methods=["GET", "POST"],
-    allow_headers=["Content-Type"],
+    allow_headers=["*"],
 )
 
 
