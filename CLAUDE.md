@@ -5,7 +5,7 @@ A Python teaching agent built on a Zettelkasten-style knowledge graph.
 ## Architecture
 
 - **`notes/`** — 127 atomic markdown notes about Python concepts, interconnected via `[[wikilinks]]`
-- **`src/graph.py`** — Parses notes into a NetworkX `DiGraph`. Nodes carry note content, edges represent wikilinks. Provides 1-hop context gathering and fuzzy topic matching (`difflib`)
+- **`src/graph.py`** — Parses notes into a NetworkX `DiGraph`. Nodes carry note content, edges represent wikilinks. Provides 1-hop context gathering and TF-IDF retrieval (`TfidfIndex`)
 - **`src/agent.py`** — Teaching agent. Finds the relevant topic from a user question, gathers 1-hop graph context, builds a system prompt (from `tutor_prompt.md` + context), calls Claude API, and returns token usage
 - **`src/main.py`** — Interactive CLI chat loop
 - **`src/api.py`** — FastAPI backend exposing chat, health, and usage endpoints
@@ -46,7 +46,7 @@ ANTHROPIC_API_KEY=... uvicorn api:app --app-dir src --port 8080
 - Self-referential wikilinks are excluded from graph edges (no self-loops)
 - Duplicate wikilinks from the same note produce only one edge
 - Dangling links (to notes that don't exist) are silently ignored
-- `find_topic` does exact case-insensitive match first, then `difflib.get_close_matches` (cutoff 0.6)
+- `TfidfIndex` provides content-based retrieval with title boosting and wikilink-aware tokenization
 - The tutor prompt is loaded once at module import from `tutor_prompt.md`
 - Model is configured in `src/agent.py` via `BRUSH_UP_MODEL`, defaulting to Sonnet 4
 - `ask(...)` returns `(response_text, updated_history, usage_dict)`

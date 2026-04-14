@@ -17,7 +17,7 @@ from slowapi.util import get_remote_address
 
 from agent import ask
 from db import init_db, check_budget, record_usage, get_usage
-from graph import build_graph
+from graph import build_graph, TfidfIndex
 
 logger = logging.getLogger("brush-up")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
@@ -56,10 +56,12 @@ ALLOWED_ORIGIN_REGEX = _parse_allowed_origin_regex()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.graph = build_graph(NOTES_DIR)
+    app.state.index = TfidfIndex(app.state.graph)
     app.state.client = anthropic.Anthropic(max_retries=3)
     app.state.db = init_db(DB_PATH)
     logger.info("Graph loaded: %d topics", app.state.graph.number_of_nodes())
     yield
+    app.state.db.close()
 
 
 limiter = Limiter(key_func=get_remote_address)
@@ -105,6 +107,7 @@ class ChatResponse(BaseModel):
 @limiter.limit("10/minute")
 def chat(req: ChatRequest, request: Request):
     graph = request.app.state.graph
+    index = request.app.state.index
     client = request.app.state.client
     db = request.app.state.db
 
@@ -121,7 +124,7 @@ def chat(req: ChatRequest, request: Request):
     start = time.monotonic()
     try:
         response_text, updated_history, usage = ask(
-            graph, req.question, req.conversation_history, client=client
+            graph, req.question, req.conversation_history, client=client, index=index
         )
     except anthropic.APIStatusError as exc:
         if exc.status_code == 529:
@@ -145,13 +148,17 @@ def chat(req: ChatRequest, request: Request):
 
     record_usage(db, req.user_id, usage["input_tokens"], usage["output_tokens"])
 
+    retrieval = usage.get("retrieval", {})
     logger.info(
-        "chat user=%s q_len=%d tokens=%d+%d %.1fs",
+        "chat user=%s q_len=%d tokens=%d+%d %.1fs topic=%r score=%.3f neighbors=%d",
         req.user_id[:8],
         len(req.question),
         usage["input_tokens"],
         usage["output_tokens"],
         elapsed,
+        retrieval.get("topic"),
+        retrieval.get("score", 0.0),
+        retrieval.get("neighbors", 0),
     )
 
     return ChatResponse(response=response_text, history=updated_history, usage=usage)

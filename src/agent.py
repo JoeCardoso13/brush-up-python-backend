@@ -1,10 +1,13 @@
 """Teaching agent — gathers graph context and calls Claude to teach Python."""
 
+import logging
 import os
 import anthropic
 from pathlib import Path
 
-from graph import find_topic, get_context
+from graph import TfidfIndex, get_context
+
+logger = logging.getLogger("brush-up.agent")
 
 MODEL = os.environ.get("BRUSH_UP_MODEL", "claude-sonnet-4-20250514")
 
@@ -40,17 +43,35 @@ def build_messages(history: list[dict], question: str) -> list[dict]:
     return history + [{"role": "user", "content": question}]
 
 
-def ask(graph, question: str, conversation_history: list[dict], *, client=None):
-    """Find relevant context, call Claude, return (response_text, updated_history)."""
+def ask(graph, question: str, conversation_history: list[dict], *, client=None, index=None):
+    """Find relevant context, call Claude, return (response_text, updated_history, usage).
+
+    ``usage`` includes token counts and a ``retrieval`` dict with
+    ``topic``, ``score``, and ``neighbors`` so callers can audit grounding.
+    """
     if client is None:
         client = anthropic.Anthropic()
+    if index is None:
+        index = TfidfIndex(graph)
 
-    topic = find_topic(graph, question)
-    context = get_context(graph, topic) if topic else {
-        "topic": question,
-        "content": None,
-        "neighbors": {},
-    }
+    matches = index.search(question, k=1)
+    topic = matches[0][0] if matches else None
+    score = matches[0][1] if matches else 0.0
+
+    if topic:
+        context = get_context(graph, topic)
+        neighbor_count = len(context["neighbors"])
+        logger.info(
+            "retrieval topic=%r score=%.3f neighbors=%d question=%r",
+            topic,
+            score,
+            neighbor_count,
+            question,
+        )
+    else:
+        context = {"topic": question, "content": None, "neighbors": {}}
+        neighbor_count = 0
+        logger.warning("retrieval no_match question=%r", question)
 
     system_prompt = build_system_prompt(context)
     messages = build_messages(conversation_history, question)
@@ -67,6 +88,11 @@ def ask(graph, question: str, conversation_history: list[dict], *, client=None):
     usage = {
         "input_tokens": response.usage.input_tokens,
         "output_tokens": response.usage.output_tokens,
+        "retrieval": {
+            "topic": topic,
+            "score": round(score, 4),
+            "neighbors": neighbor_count,
+        },
     }
 
     return assistant_text, updated_history, usage

@@ -5,7 +5,6 @@ from graph import (
     build_graph,
     get_node_content,
     get_context,
-    find_topic,
 )
 
 
@@ -147,7 +146,7 @@ class TestGetContext:
         ctx = get_context(mini_graph, "Alpha")
         assert "Beta" in ctx["neighbors"]
         # neighbors is a dict so inherently deduplicated; just check content
-        assert ctx["neighbors"]["Beta"] == "Beta links to [[Alpha]] and [[Delta]]."
+        assert ctx["neighbors"]["Beta"] == "Beta links to Alpha and Delta."
 
     def test_nonexistent_topic(self, mini_graph):
         ctx = get_context(mini_graph, "Nope")
@@ -158,33 +157,3 @@ class TestGetContext:
         ctx = get_context(mini_graph, "Gamma")
         assert "Alpha" in ctx["neighbors"]
         assert "Zeta" in ctx["neighbors"]
-
-
-# ── Group E: find_topic ─────────────────────────────────────────────────
-
-
-class TestFindTopic:
-    def test_exact_match(self, mini_graph):
-        assert find_topic(mini_graph, "Alpha") == "Alpha"
-
-    def test_case_insensitive(self, mini_graph):
-        assert find_topic(mini_graph, "alpha") == "Alpha"
-
-    def test_fuzzy_match(self, mini_graph):
-        assert find_topic(mini_graph, "Alph") == "Alpha"
-
-    def test_multi_word_query(self):
-        """Test with a graph that has multi-word node names."""
-        import networkx as nx
-
-        g = nx.DiGraph()
-        g.add_node("Class method", content="...")
-        g.add_node("Class variable", content="...")
-        assert find_topic(g, "class method") == "Class method"
-
-    def test_no_match(self, mini_graph):
-        assert find_topic(mini_graph, "xyzzy") is None
-
-    def test_fuzzy_prefers_closest(self, mini_graph):
-        # "Bet" should match "Beta" not "Zeta"
-        assert find_topic(mini_graph, "Bet") == "Beta"

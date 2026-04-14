@@ -3,11 +3,13 @@
 from contextlib import asynccontextmanager
 from unittest.mock import MagicMock
 
+import anthropic
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
 from db import init_db, record_usage, get_usage
-from graph import build_graph
+from graph import build_graph, TfidfIndex
 
 
 def _make_mock_client(response_text="Here is my explanation."):
@@ -38,9 +40,11 @@ def app_client(mini_notes):
 
     with TestClient(api.app, raise_server_exceptions=True) as client:
         api.app.state.graph = test_graph
+        api.app.state.index = TfidfIndex(test_graph)
         api.app.state.client = mock_client
         api.app.state.db = test_db
         yield client, mock_client, test_db
+    test_db.close()
 
 
 # ── Group M: POST /api/chat ───────────────────────────────────────────
@@ -201,3 +205,81 @@ class TestCors:
 
         assert resp.status_code == 400
         assert "access-control-allow-origin" not in resp.headers
+
+
+# ── Group Q: Lifespan DB connection cleanup ──────────────────────────
+
+
+class TestLifespanDbClose:
+    def test_db_closed_after_lifespan(self, mini_notes):
+        """Regression: lifespan must close the DB connection on shutdown."""
+        import api
+
+        test_graph = build_graph(mini_notes)
+        mock_client = _make_mock_client()
+        test_db = init_db(":memory:")
+
+        @asynccontextmanager
+        async def test_lifespan(app):
+            app.state.db = test_db
+            yield
+            app.state.db.close()
+
+        api.app.router.lifespan_context = test_lifespan
+
+        with TestClient(api.app) as client:
+            api.app.state.graph = test_graph
+            api.app.state.client = mock_client
+
+        # After TestClient exits, lifespan has yielded and closed the DB.
+        # Any operation on the closed connection must raise.
+        with pytest.raises(Exception):
+            test_db.execute("SELECT 1")
+
+
+# ── Group R: Anthropic API error handling ────────────────────────────
+
+
+class TestApiErrorHandling:
+    def test_overloaded_529_returns_503(self, app_client):
+        client, mock_claude, _ = app_client
+        mock_claude.messages.create.side_effect = anthropic.APIStatusError(
+            message="overloaded",
+            response=httpx.Response(529, request=httpx.Request("POST", "https://api.anthropic.com")),
+            body=None,
+        )
+        resp = client.post("/api/chat", json={
+            "user_id": "test-user",
+            "question": "What is Alpha?",
+            "conversation_history": [],
+        })
+        assert resp.status_code == 503
+        assert resp.json()["error"] == "overloaded"
+
+    def test_api_status_error_returns_502(self, app_client):
+        client, mock_claude, _ = app_client
+        mock_claude.messages.create.side_effect = anthropic.APIStatusError(
+            message="internal server error",
+            response=httpx.Response(500, request=httpx.Request("POST", "https://api.anthropic.com")),
+            body=None,
+        )
+        resp = client.post("/api/chat", json={
+            "user_id": "test-user",
+            "question": "What is Alpha?",
+            "conversation_history": [],
+        })
+        assert resp.status_code == 502
+        assert resp.json()["error"] == "api_error"
+
+    def test_api_error_returns_502(self, app_client):
+        client, mock_claude, _ = app_client
+        mock_claude.messages.create.side_effect = anthropic.APIConnectionError(
+            request=httpx.Request("POST", "https://api.anthropic.com"),
+        )
+        resp = client.post("/api/chat", json={
+            "user_id": "test-user",
+            "question": "What is Alpha?",
+            "conversation_history": [],
+        })
+        assert resp.status_code == 502
+        assert resp.json()["error"] == "api_error"

@@ -8,7 +8,9 @@ from db import init_db, check_budget, record_usage, get_usage
 @pytest.fixture
 def conn():
     """In-memory SQLite connection for testing."""
-    return init_db(":memory:")
+    connection = init_db(":memory:")
+    yield connection
+    connection.close()
 
 
 # ── Group I: init_db ───────────────────────────────────────────────────

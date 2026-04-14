@@ -126,7 +126,12 @@ class TestAsk:
         graph = _make_test_graph()
         client = _make_mock_client()
         _, _, usage = ask(graph, "What is a class?", [], client=client)
-        assert usage == {"input_tokens": 100, "output_tokens": 50}
+        assert usage["input_tokens"] == 100
+        assert usage["output_tokens"] == 50
+        assert "retrieval" in usage
+        assert usage["retrieval"]["topic"] is not None
+        assert isinstance(usage["retrieval"]["score"], float)
+        assert isinstance(usage["retrieval"]["neighbors"], int)
 
     def test_handles_unknown_topic(self):
         graph = _make_test_graph()
@@ -135,3 +140,23 @@ class TestAsk:
         assert response == "I'm not sure about that topic."
         # API was still called
         client.messages.create.assert_called_once()
+
+
+# ── Group I: TF-IDF retrieval integration ──────────────────────────────
+
+
+class TestTfidfRetrieval:
+    def test_natural_language_query_retrieves_relevant_note(self, tfidf_graph):
+        """A question phrased nothing like a note title should still ground
+        the prompt in the right note via TF-IDF content search."""
+        client = _make_mock_client()
+        # This query doesn't match any title, but its vocabulary overlaps
+        # heavily with the Decorator note body
+        response, _, _ = ask(
+            tfidf_graph,
+            "how do I wrap a function to modify its behavior",
+            [],
+            client=client,
+        )
+        system_prompt = client.messages.create.call_args.kwargs["system"]
+        assert "decorator" in system_prompt.lower()
