@@ -144,10 +144,16 @@ class TestDiversePhrasings:
         names = [name for name, _ in results]
         assert "Decorator" in names, f"Expected 'Decorator' for: {question!r}, got {names}"
 
+    @pytest.mark.xfail(
+        reason="Inheritance ranks 3rd (score 0.078) behind Implicit coercion and MRO. "
+        "Test was passing by checking top-3, but ask() uses k=1. Retrieval improvement needed.",
+        strict=False,
+    )
     def test_inheritance_direct(self, real_index):
-        results = real_index.search("how does inheritance work", k=3)
-        names = [name for name, _ in results]
-        assert "Inheritance" in names, f"Expected 'Inheritance', got {names}"
+        results = real_index.search("how does inheritance work", k=1)
+        assert results[0][0] == "Inheritance", (
+            f"Expected 'Inheritance' at top-1, got {results[0][0]!r}"
+        )
 
     @pytest.mark.xfail(
         reason="Inheritance note is code-heavy with little keyword-rich prose; "
