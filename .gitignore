@@ -27,6 +27,7 @@ pip-wheel-metadata/
 .codex
 .codex/
 .claude/
+HANDOFF.md
 
 # OS/editor noise
 .DS_Store

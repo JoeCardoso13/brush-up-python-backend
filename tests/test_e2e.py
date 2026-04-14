@@ -16,7 +16,6 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
-from db import init_db
 from graph import TfidfIndex
 
 
@@ -40,11 +39,6 @@ def e2e_client(real_graph):
     import api
 
     mock_client = _make_mock_client()
-    test_db = init_db(":memory:")
-
-    # Disable the rate limiter for e2e tests
-    original_enabled = api.limiter.enabled
-    api.limiter.enabled = False
 
     @asynccontextmanager
     async def test_lifespan(app):
@@ -56,11 +50,8 @@ def e2e_client(real_graph):
         api.app.state.graph = real_graph
         api.app.state.index = TfidfIndex(real_graph)
         api.app.state.client = mock_client
-        api.app.state.db = test_db
+        api.app.state.budgets = {}
         yield client, mock_client
-
-    api.limiter.enabled = original_enabled
-    test_db.close()
 
 
 def _chat(client, question, history=None):
