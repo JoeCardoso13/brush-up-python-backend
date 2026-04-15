@@ -1,4 +1,4 @@
-# Brush up python backend
+# Brush Up Python backend
 
 Backend for [Brush Up Python](https://www.joecardoso.dev/brush-up-py), a small AI-powered Python tutor built to showcase applied product and engineering work.
 
