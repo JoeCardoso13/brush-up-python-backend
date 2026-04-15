@@ -1,6 +1,6 @@
-# brush-up-py backend
+# Brush up python backend
 
-Backend for [brush-up-py](https://www.joecardoso.dev/brush-up-py), a small AI-powered Python tutor built to showcase applied product and engineering work.
+Backend for [Brush Up Python](https://www.joecardoso.dev/brush-up-py), a small AI-powered Python tutor built to showcase applied product and engineering work.
 
 The app answers Python questions by grounding model responses in a personal Zettelkasten-style knowledge base of interconnected markdown notes. This repository contains the backend API, retrieval pipeline, tutor prompt, and test suite.
 
@@ -11,18 +11,6 @@ The app answers Python questions by grounding model responses in a personal Zett
 - Retrieves the most relevant topic with a lightweight TF-IDF index
 - Expands context with 1-hop graph neighbors before calling Anthropic
 - Tracks per-user token usage in memory to limit abuse on the public demo
-
-## Why I built it
-
-brush-up-py is part learning tool, part portfolio project.
-
-I wanted something small enough to ship end-to-end, but opinionated enough to demonstrate:
-
-- backend API design
-- retrieval-augmented prompting
-- practical LLM integration
-- testing discipline
-- deployment of a real public-facing app
 
 ## Architecture
 
@@ -180,19 +168,6 @@ The production container:
 ## Testing
 
 The project includes unit, integration, and API-level tests covering the graph builder, retrieval, tutor flow, budget logic, and FastAPI endpoints.
-
-At the time this README was written, the test suite in this repo was already in strong shape, with high coverage and dedicated e2e-style API checks.
-
-## Notes and tradeoffs
-
-- Token budgets are stored in memory, so usage resets on restart
-- Retrieval is intentionally simple and fast: TF-IDF over local note content, not embeddings
-- The backend is stateless with respect to chat history
-- The note corpus is curated by hand rather than generated
-
-## Public demo
-
-- Live app: [joecardoso.dev/brush-up-py](https://www.joecardoso.dev/brush-up-py)
 
 ## License
 
